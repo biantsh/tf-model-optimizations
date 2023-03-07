@@ -1,36 +1,66 @@
-import time
+"""Unzip a zipped TFLite model into memory and run inference
+
+Example usage:
+    python3 tflite_inference.py  \
+      --model_path model.zip
+      --images_dir images/
+"""
+
+import argparse
+import glob
 
 import cv2 as cv
+import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
 
-model_path = 'pcqat_model_2.tflite'
-image_path = 'resources/image_cat_2.jpg'
+CLASS_NAMES = ['cat', 'dog']
 
-interpreter = tf.lite.Interpreter(model_path)
-interpreter.allocate_tensors()
 
-input_details = interpreter.get_input_details()
-input_shape = input_details[0]['shape']
-input_dtype = input_details[0]['dtype']
-input_index = input_details[0]['index']
+def main(model_path: str, images_dir: str) -> None:
+    interpreter = tf.lite.Interpreter(model_path)
+    interpreter.allocate_tensors()
 
-output_details = interpreter.get_output_details()
+    input_details = interpreter.get_input_details()
+    input_shape = input_details[0]['shape']
+    input_dtype = input_details[0]['dtype']
+    input_index = input_details[0]['index']
 
-# Load and preprocess image
-image = cv.imread(image_path)
-image = cv.cvtColor(image, cv.COLOR_BGR2RGB)
-image = cv.resize(image, input_shape[2:0:-1])
-image = np.expand_dims(image, 0)
-image = image.astype(input_dtype)
-image = image / 127.5 - 1
+    output_details = interpreter.get_output_details()
 
-# Inference
-time_before = time.time()
-interpreter.set_tensor(input_index, image)
-interpreter.invoke()
-time_taken = time.time() - time_before
+    for image_path in glob.glob(f'{images_dir}/*.jpg'):
+        # Load and preprocess image
+        image = cv.imread(image_path)
+        image = cv.cvtColor(image, cv.COLOR_BGR2RGB)
 
-output_data = interpreter.get_tensor(output_details[0]['index'])
-print(output_data)
-print('Time taken in seconds: ', time_taken)
+        tensor = cv.resize(image, input_shape[2:0:-1])
+        tensor = np.expand_dims(tensor, 0)
+        tensor = tensor.astype(input_dtype)
+        tensor = tensor / 127.5 - 1
+
+        # Inference
+        interpreter.set_tensor(input_index, tensor)
+        interpreter.invoke()
+
+        output_data = interpreter.get_tensor(output_details[0]['index'])
+        output_data = np.squeeze(output_data)
+
+        confidence = max(output_data)
+        prediction = CLASS_NAMES[np.argmax(output_data)]
+
+        # Prettify and display results
+        confidence = round(confidence * 100, 2)
+        prediction = prediction.title()
+
+        plt.title(f'Prediction: {prediction}, Confidence: {confidence}%')
+        plt.imshow(image)
+        plt.show()
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--model_path', type=str)
+    parser.add_argument('--images_dir', type=str)
+
+    args = parser.parse_args()
+    main(args.model_path, args.images_dir)
