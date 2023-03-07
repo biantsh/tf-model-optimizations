@@ -2,7 +2,7 @@
 
 Example usage:
     python3 model_train.py  \
-      --output_file model.zip
+      --output_file model.tflite
       --image_width 224
       --image_height 224
       --train_split 0.8
@@ -12,6 +12,7 @@ Example usage:
 
 import argparse
 import logging
+import os
 import zipfile
 
 import tensorflow as tf
@@ -171,7 +172,10 @@ def main(output_file: str,
     converter.optimizations = [tf.lite.Optimize.DEFAULT]
     pcqat_tflite_model = converter.convert()
 
-    with zipfile.ZipFile(output_file, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+    model_name, _ = os.path.splitext(output_file)
+    zipped_path = f'{model_name}.zip'
+
+    with zipfile.ZipFile(zipped_path, 'w', zipfile.ZIP_DEFLATED) as zip_file:
         zip_file.writestr(output_file, pcqat_tflite_model)
 
 
