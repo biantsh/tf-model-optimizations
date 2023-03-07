@@ -8,6 +8,8 @@ Example usage:
 
 import argparse
 import glob
+import os
+import zipfile
 
 import cv2 as cv
 import matplotlib.pyplot as plt
@@ -18,7 +20,13 @@ CLASS_NAMES = ['cat', 'dog']
 
 
 def main(model_path: str, images_dir: str) -> None:
-    interpreter = tf.lite.Interpreter(model_path)
+    model_name, _ = os.path.splitext(model_path)
+    unzipped_path = f'{model_name}.tflite'
+
+    with zipfile.ZipFile(model_path, 'r') as zip_file:
+        model_content = zip_file.read(unzipped_path)
+
+    interpreter = tf.lite.Interpreter(model_content=model_content)
     interpreter.allocate_tensors()
 
     input_details = interpreter.get_input_details()
