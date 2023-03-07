@@ -2,7 +2,7 @@
 
 Example usage:
     python3 model_train.py  \
-      --output_file model.tflite
+      --output_file model.zip
       --image_width 224
       --image_height 224
       --train_split 0.8
@@ -12,6 +12,7 @@ Example usage:
 
 import argparse
 import logging
+import zipfile
 
 import tensorflow as tf
 import tensorflow_datasets as tfds
@@ -52,7 +53,7 @@ def get_preprocessor(target_height, target_width) -> keras.Sequential:
 
 def get_data_augmenter() -> keras.Sequential:
     return keras.Sequential([
-        layers.RandomFlip("horizontal_and_vertical"),
+        layers.RandomFlip('horizontal_and_vertical'),
         layers.RandomRotation(0.2),
         layers.RandomZoom(0.2),
         layers.RandomContrast(0.2),
@@ -152,7 +153,7 @@ def main(output_file: str,
     # Pruning and clustering-preserving quantization aware training
     pcqat_model = tfmot.quantization.keras.quantize_annotate_model(
         clustered_model)
-    quant_scheme = tfmot.experimental.combine.\
+    quant_scheme = tfmot.experimental.combine. \
         Default8BitClusterPreserveQuantizeScheme()
 
     pcqat_model = tfmot.quantization.keras.quantize_apply(pcqat_model,
@@ -168,10 +169,10 @@ def main(output_file: str,
     # TFLite conversion
     converter = tf.lite.TFLiteConverter.from_keras_model(pcqat_model)
     converter.optimizations = [tf.lite.Optimize.DEFAULT]
-
     pcqat_tflite_model = converter.convert()
-    with open(output_file, 'wb') as f:
-        f.write(pcqat_tflite_model)
+
+    with zipfile.ZipFile(output_file, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+        zip_file.writestr(output_file, pcqat_tflite_model)
 
 
 if __name__ == '__main__':
