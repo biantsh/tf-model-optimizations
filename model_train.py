@@ -2,11 +2,12 @@
 
 Example usage:
     python3 model_train.py  \
-      --output_file model.tflite
-      --image_width 224
-      --image_height 224
-      --train_split 0.8
-      --batch_size 32
+      --output_file model.tflite  \
+      --plots_dir training_plots  \
+      --image_width 224  \
+      --image_height 224  \
+      --train_split 0.8  \
+      --batch_size 32  \
       --num_epochs 100
 """
 
@@ -14,7 +15,9 @@ import argparse
 import logging
 import os
 import zipfile
+from typing import Sequence
 
+import matplotlib.pyplot as plt
 import tensorflow as tf
 import tensorflow_datasets as tfds
 import tensorflow_model_optimization as tfmot
@@ -103,7 +106,29 @@ def load_dataset(image_height: int,
     return train, val
 
 
+def plot_metrics(train_metric: Sequence[float],
+                 val_metric: Sequence[float],
+                 metric_name: str,
+                 output_path: str
+                 ) -> None:
+    plt.clf()
+    plt.grid()
+
+    metric_title = metric_name.capitalize()
+
+    plt.xlabel('Epoch', fontsize=14)
+    plt.ylabel(metric_title, fontsize=14)
+    plt.title(f'Training and Validation {metric_title}', fontsize=16)
+
+    plt.plot(train_metric, label=f'Training {metric_name}', color='#ff7f0e')
+    plt.plot(val_metric, label=f'Validation {metric_name}', color='#1f77b4')
+
+    plt.legend()
+    plt.savefig(output_path)
+
+
 def main(output_file: str,
+         plots_dir: str,
          image_width: int,
          image_height: int,
          train_split: float,
@@ -121,7 +146,20 @@ def main(output_file: str,
                   metrics=['accuracy'])
 
     logging.log(logging.INFO, f'Training model for {num_epochs} epochs...')
-    model.fit(train, epochs=num_epochs, validation_data=val)
+    history = model.fit(train, epochs=num_epochs, validation_data=val)
+
+    if plots_dir is not None:
+        train_loss = history.history['loss']
+        val_loss = history.history['val_loss']
+
+        loss_plot_path = os.path.join(plots_dir, 'plot_loss.jpg')
+        plot_metrics(train_loss, val_loss, 'loss', loss_plot_path)
+
+        train_acc = history.history['accuracy']
+        val_acc = history.history['val_accuracy']
+
+        acc_plot_path = os.path.join(plots_dir, 'plot_accuracy.jpg')
+        plot_metrics(train_acc, val_acc, 'accuracy', acc_plot_path)
 
     # Pruning
     prune_low_magnitude = tfmot.sparsity.keras.prune_low_magnitude
@@ -182,6 +220,7 @@ def main(output_file: str,
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--output_file', type=str)
+    parser.add_argument('--plots_dir', type=str, default=None)
     parser.add_argument('--image_width', type=int, default=150)
     parser.add_argument('--image_height', type=int, default=150)
     parser.add_argument('--train_split', type=float, default=0.8)
@@ -190,6 +229,7 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
     main(args.output_file,
+         args.plots_dir,
          args.image_width,
          args.image_height,
          args.train_split,
