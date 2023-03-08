@@ -7,7 +7,7 @@ Example usage:
       --image_height 224
       --train_split 0.8
       --batch_size 32
-      --num_epochs 50
+      --num_epochs 100
 """
 
 import argparse
@@ -182,11 +182,11 @@ def main(output_file: str,
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--output_file', type=str)
-    parser.add_argument('--image_width', type=int, default=224)
-    parser.add_argument('--image_height', type=int, default=224)
+    parser.add_argument('--image_width', type=int, default=150)
+    parser.add_argument('--image_height', type=int, default=150)
     parser.add_argument('--train_split', type=float, default=0.8)
     parser.add_argument('--batch_size', type=int, default=32)
-    parser.add_argument('--num_epochs', type=int, default=50)
+    parser.add_argument('--num_epochs', type=int, default=100)
 
     args = parser.parse_args()
     main(args.output_file,
