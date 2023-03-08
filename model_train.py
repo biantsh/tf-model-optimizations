@@ -172,7 +172,7 @@ def main(output_file: str,
 
     logging.log(logging.INFO, f'Fine-tuning pruned model for 3 epochs...')
     callbacks = [tfmot.sparsity.keras.UpdatePruningStep()]
-    pruned_model.fit(train, epochs=3, validation_data=val, callbacks=callbacks)
+    pruned_model.fit(train, epochs=5, validation_data=val, callbacks=callbacks)
 
     pruned_model = tfmot.sparsity.keras.strip_pruning(pruned_model)
 
@@ -185,7 +185,7 @@ def main(output_file: str,
                             metrics=['accuracy'])
 
     logging.log(logging.INFO, 'Fine-tuning clustered model for 3 epochs...')
-    clustered_model.fit(train, epochs=3, validation_data=val)
+    clustered_model.fit(train, epochs=5, validation_data=val)
 
     clustered_model = tfmot.clustering.keras.strip_clustering(clustered_model)
 
@@ -203,7 +203,7 @@ def main(output_file: str,
                         metrics=['accuracy'])
 
     logging.log(logging.INFO, 'Fine-tuning model with PCQAT for 1 epoch...')
-    pcqat_model.fit(train, epochs=1, validation_data=val)
+    pcqat_model.fit(train, epochs=5, validation_data=val)
 
     # TFLite conversion
     converter = tf.lite.TFLiteConverter.from_keras_model(pcqat_model)
@@ -221,8 +221,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--output_file', type=str)
     parser.add_argument('--plots_dir', type=str, default=None)
-    parser.add_argument('--image_width', type=int, default=150)
-    parser.add_argument('--image_height', type=int, default=150)
+    parser.add_argument('--image_width', type=int, default=224)
+    parser.add_argument('--image_height', type=int, default=224)
     parser.add_argument('--train_split', type=float, default=0.8)
     parser.add_argument('--batch_size', type=int, default=32)
     parser.add_argument('--num_epochs', type=int, default=100)
