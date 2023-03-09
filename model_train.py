@@ -2,8 +2,8 @@
 
 Example usage:
     python3 model_train.py  \
-      --output_file model.tflite  \
-      --plots_dir training_plots  \
+      --output_file assets/model.tflite  \
+      --plots_dir assets/plots  \
       --image_width 224  \
       --image_height 224  \
       --train_split 0.8  \
@@ -147,26 +147,18 @@ def plot_metrics(train_metric: Sequence[float],
     clustering_breakpoint = pcqat_breakpoint - NUM_CLUSTERING_EPOCHS
     pruning_breakpoint = clustering_breakpoint - NUM_PRUNING_EPOCHS
 
-    breakpoint_params = {
-        'linewidth': 1,
-        'color': 'gray',
-        'linestyle': '--'
-    }
-    text_params = {
-        'rotation': 90,
-        'color': 'gray'
-    }
+    x_offset = 0.03 * total_epochs
     y = min(train_metric) + (max(train_metric) - min(train_metric)) / 5
-    offset = 0.03 * total_epochs
 
-    plt.axvline(pruning_breakpoint, **breakpoint_params)
-    plt.text(pruning_breakpoint - offset, y, 'Pruning', **text_params)
+    breakpoints = {
+        'Pruning': pruning_breakpoint,
+        'Clustering': clustering_breakpoint,
+        'PC-QAT': pcqat_breakpoint
+    }
 
-    plt.axvline(clustering_breakpoint, **breakpoint_params)
-    plt.text(clustering_breakpoint - offset, y, 'Clustering', **text_params)
-
-    plt.axvline(pcqat_breakpoint, **breakpoint_params)
-    plt.text(pcqat_breakpoint - offset, y, 'PC-QAT', **text_params)
+    for name, breakpoint_ in breakpoints.items():
+        plt.axvline(breakpoint_, linewidth=1, linestyle='--', color='gray')
+        plt.text(breakpoint_ - x_offset, y, name, rotation=90, color='gray')
 
     plt.legend()
     plt.savefig(output_path)

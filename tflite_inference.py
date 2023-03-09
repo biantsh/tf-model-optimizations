@@ -1,9 +1,9 @@
-"""Unzip a zipped TFLite model into memory and run inference
+"""Unzip a zipped TFLite model into memory and run inference.
 
 Example usage:
     python3 tflite_inference.py  \
-      --model_path model.zip  \
-      --images_dir images/
+      --model_path assets/model.zip  \
+      --images_dir assets/images/
 """
 
 import argparse
@@ -21,10 +21,10 @@ CLASS_NAMES = ['cat', 'dog']
 
 def main(model_path: str, images_dir: str) -> None:
     model_name, _ = os.path.splitext(model_path)
-    unzipped_path = f'{model_name}.tflite'
+    unzipped_name = f'{os.path.basename(model_name)}.tflite'
 
     with zipfile.ZipFile(model_path, 'r') as zip_file:
-        model_content = zip_file.read(unzipped_path)
+        model_content = zip_file.read(unzipped_name)
 
     interpreter = tf.lite.Interpreter(model_content=model_content)
     interpreter.allocate_tensors()
