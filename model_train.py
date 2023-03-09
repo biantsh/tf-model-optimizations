@@ -27,6 +27,12 @@ from tensorflow_model_optimization.python.core. \
     clustering.keras.experimental import cluster
 
 CLASS_NAMES = ['cat', 'dog']
+
+# Optimization fine-tuning related parameters
+NUM_PRUNING_EPOCHS = 5
+NUM_CLUSTERING_EPOCHS = 5
+NUM_PCQAT_EPOCHS = 10
+
 PRUNING_PARAMS = {
     'pruning_schedule':
         tfmot.sparsity.keras.
@@ -106,13 +112,24 @@ def load_dataset(image_height: int,
     return train, val
 
 
+def append_history(history: keras.callbacks.History,
+                   *histories: keras.callbacks.History
+                   ) -> keras.callbacks.History:
+    for hist in histories:
+        history.history['loss'] += hist.history['loss']
+        history.history['val_loss'] += hist.history['val_loss']
+        history.history['accuracy'] += hist.history['accuracy']
+        history.history['val_accuracy'] += hist.history['val_accuracy']
+
+    return history
+
+
 def plot_metrics(train_metric: Sequence[float],
                  val_metric: Sequence[float],
                  metric_name: str,
                  output_path: str
                  ) -> None:
     plt.clf()
-    plt.grid()
 
     metric_title = metric_name.capitalize()
 
@@ -122,6 +139,34 @@ def plot_metrics(train_metric: Sequence[float],
 
     plt.plot(train_metric, label=f'Training {metric_name}', color='#ff7f0e')
     plt.plot(val_metric, label=f'Validation {metric_name}', color='#1f77b4')
+
+    # Plot vertical breakpoints after pruning, clustering and PCQAT
+    total_epochs = len(train_metric)
+
+    pcqat_breakpoint = total_epochs - NUM_PCQAT_EPOCHS
+    clustering_breakpoint = pcqat_breakpoint - NUM_CLUSTERING_EPOCHS
+    pruning_breakpoint = clustering_breakpoint - NUM_PRUNING_EPOCHS
+
+    breakpoint_params = {
+        'linewidth': 1,
+        'color': 'gray',
+        'linestyle': '--'
+    }
+    text_params = {
+        'rotation': 90,
+        'color': 'gray'
+    }
+    y = min(train_metric) + (max(train_metric) - min(train_metric)) / 5
+    offset = 0.03 * total_epochs
+
+    plt.axvline(pruning_breakpoint, **breakpoint_params)
+    plt.text(pruning_breakpoint - offset, y, 'Pruning', **text_params)
+
+    plt.axvline(clustering_breakpoint, **breakpoint_params)
+    plt.text(clustering_breakpoint - offset, y, 'Clustering', **text_params)
+
+    plt.axvline(pcqat_breakpoint, **breakpoint_params)
+    plt.text(pcqat_breakpoint - offset, y, 'PC-QAT', **text_params)
 
     plt.legend()
     plt.savefig(output_path)
@@ -148,19 +193,6 @@ def main(output_file: str,
     logging.log(logging.INFO, f'Training model for {num_epochs} epochs...')
     history = model.fit(train, epochs=num_epochs, validation_data=val)
 
-    if plots_dir is not None:
-        train_loss = history.history['loss']
-        val_loss = history.history['val_loss']
-
-        loss_plot_path = os.path.join(plots_dir, 'plot_loss.jpg')
-        plot_metrics(train_loss, val_loss, 'loss', loss_plot_path)
-
-        train_acc = history.history['accuracy']
-        val_acc = history.history['val_accuracy']
-
-        acc_plot_path = os.path.join(plots_dir, 'plot_accuracy.jpg')
-        plot_metrics(train_acc, val_acc, 'accuracy', acc_plot_path)
-
     # Pruning
     prune_low_magnitude = tfmot.sparsity.keras.prune_low_magnitude
     pruned_model = prune_low_magnitude(model, **PRUNING_PARAMS)
@@ -172,7 +204,10 @@ def main(output_file: str,
 
     logging.log(logging.INFO, f'Fine-tuning pruned model for 3 epochs...')
     callbacks = [tfmot.sparsity.keras.UpdatePruningStep()]
-    pruned_model.fit(train, epochs=5, validation_data=val, callbacks=callbacks)
+    prune_history = pruned_model.fit(train,
+                                     validation_data=val,
+                                     callbacks=callbacks,
+                                     epochs=NUM_PRUNING_EPOCHS)
 
     pruned_model = tfmot.sparsity.keras.strip_pruning(pruned_model)
 
@@ -185,7 +220,9 @@ def main(output_file: str,
                             metrics=['accuracy'])
 
     logging.log(logging.INFO, 'Fine-tuning clustered model for 3 epochs...')
-    clustered_model.fit(train, epochs=5, validation_data=val)
+    cluster_history = clustered_model.fit(train,
+                                          validation_data=val,
+                                          epochs=NUM_CLUSTERING_EPOCHS)
 
     clustered_model = tfmot.clustering.keras.strip_clustering(clustered_model)
 
@@ -203,7 +240,9 @@ def main(output_file: str,
                         metrics=['accuracy'])
 
     logging.log(logging.INFO, 'Fine-tuning model with PCQAT for 1 epoch...')
-    pcqat_model.fit(train, epochs=5, validation_data=val)
+    pcqat_history = pcqat_model.fit(train,
+                                    validation_data=val,
+                                    epochs=NUM_PCQAT_EPOCHS)
 
     # TFLite conversion
     converter = tf.lite.TFLiteConverter.from_keras_model(pcqat_model)
@@ -215,6 +254,24 @@ def main(output_file: str,
 
     with zipfile.ZipFile(zipped_path, 'w', zipfile.ZIP_DEFLATED) as zip_file:
         zip_file.writestr(output_file, pcqat_tflite_model)
+
+    if plots_dir is not None:
+        history = append_history(history,
+                                 prune_history,
+                                 cluster_history,
+                                 pcqat_history)
+
+        train_loss = history.history['loss']
+        val_loss = history.history['val_loss']
+
+        loss_plot_path = os.path.join(plots_dir, 'plot_loss.jpg')
+        plot_metrics(train_loss, val_loss, 'loss', loss_plot_path)
+
+        train_acc = history.history['accuracy']
+        val_acc = history.history['val_accuracy']
+
+        acc_plot_path = os.path.join(plots_dir, 'plot_accuracy.jpg')
+        plot_metrics(train_acc, val_acc, 'accuracy', acc_plot_path)
 
 
 if __name__ == '__main__':

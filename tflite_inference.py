@@ -2,7 +2,7 @@
 
 Example usage:
     python3 tflite_inference.py  \
-      --model_path model.zip
+      --model_path model.zip  \
       --images_dir images/
 """
 
