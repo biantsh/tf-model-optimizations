@@ -1,0 +1,6 @@
+keras==2.8.0
+matplotlib>=3.7
+numpy>=1.24
+tensorflow==2.8.1
+tensorflow_datasets>=4.8
+tensorflow_model_optimization>=0.7
