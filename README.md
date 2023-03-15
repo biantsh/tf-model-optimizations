@@ -7,7 +7,7 @@ A demo project showcasing deep learning optimizations for extremely low resource
   <img src="assets/examples/dog_1.png" height="275" />
 </p>
 
-The main points of optimization are:
+The main areas of optimization are:
 
 **1. Hyperparameter tuning** to reduce the number of parameters while maintaining as much accuracy as possible.  
 **2. Combined train-time and post-training optimizations** such as pruning, clustering and quantization.  
