@@ -1,7 +1,7 @@
 """Unzip a zipped TFLite model into memory and run inference.
 
 Example usage:
-    python3 tflite_inference.py  \
+    python3 model_inference.py  \
       --model_path assets/model.zip  \
       --images_dir assets/images/
 """
